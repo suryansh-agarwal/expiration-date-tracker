@@ -14,16 +14,21 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    })
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
 
-    if (res.ok) {
-      router.push('/dashboard')
-    } else {
-      setError('Wrong password. Try again.')
+      if (res.ok) {
+        router.push('/dashboard')
+      } else {
+        setError('Wrong password. Try again.')
+      }
+    } catch {
+      setError('Connection error. Try again.')
+    } finally {
       setLoading(false)
     }
   }
@@ -41,6 +46,8 @@ export default function LoginPage() {
             onChange={e => setPassword(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
+            autoComplete="current-password"
+            aria-label="Password"
           />
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
