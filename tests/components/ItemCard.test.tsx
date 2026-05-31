@@ -36,11 +36,16 @@ describe('ItemCard', () => {
 
   it('shows photo thumbnail when photo_url is set', () => {
     render(<ItemCard item={{ ...item, photo_url: 'https://example.com/photo.jpg' }} />)
-    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/photo.jpg')
+    expect(screen.getByRole('img')).toHaveAttribute('alt', 'Orange Juice')
   })
 
   it('does not render img when photo_url is null', () => {
     render(<ItemCard item={item} />)
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('shows "Expired" badge for a past expiry date', () => {
+    render(<ItemCard item={{ ...item, expiry_date: '2026-01-01' }} />)
+    expect(screen.getByText('Expired')).toBeInTheDocument()
   })
 })

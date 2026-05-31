@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import { getItemStatus } from '@/lib/items'
@@ -14,14 +15,17 @@ export default function ItemCard({ item }: { item: Item }) {
   return (
     <Link
       href={`/item/${item.id}`}
+      aria-label={item.name}
       className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow"
     >
       <div className="flex items-center gap-3">
         {item.photo_url && (
-          <img
+          <Image
             src={item.photo_url}
             alt={item.name}
-            className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+            width={56}
+            height={56}
+            className="rounded-lg object-cover flex-shrink-0"
           />
         )}
         <div className="flex-1 min-w-0">
