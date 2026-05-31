@@ -16,15 +16,19 @@ export default function ItemPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
-    fetch(`/api/items/${id}`)
+    const controller = new AbortController()
+    fetch(`/api/items/${id}`, { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         setItem(data)
         setName(data.name)
         setExpiryDate(data.expiry_date)
       })
+      .catch(() => {}) // abort errors are expected on unmount
+    return () => controller.abort()
   }, [id])
 
   async function handleSave() {
@@ -49,7 +53,12 @@ export default function ItemPage() {
   }
 
   async function handleDelete() {
-    await fetch(`/api/items/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/items/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      setDeleteError('Failed to delete item. Please try again.')
+      setConfirmDelete(false)
+      return
+    }
     router.push('/dashboard')
   }
 
@@ -155,6 +164,7 @@ export default function ItemPage() {
             </div>
           </div>
         )}
+        {deleteError && <p className="text-red-500 text-sm mt-2 text-center">{deleteError}</p>}
       </div>
     </main>
   )
