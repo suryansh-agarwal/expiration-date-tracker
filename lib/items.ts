@@ -4,7 +4,6 @@ export function getItemStatus(expiryDate: string): ItemStatus {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const expiry = new Date(expiryDate + 'T00:00:00')
-  expiry.setHours(0, 0, 0, 0)
 
   if (expiry <= today) return 'expired'
 
@@ -25,8 +24,8 @@ const STATUS_ORDER: Record<ItemStatus, number> = {
 export function sortItems(items: Item[]): Item[] {
   return [...items].sort(
     (a, b) =>
-      STATUS_ORDER[getItemStatus(a.expiry_date)] -
-      STATUS_ORDER[getItemStatus(b.expiry_date)]
+      STATUS_ORDER[getItemStatus(a.expiry_date)] - STATUS_ORDER[getItemStatus(b.expiry_date)] ||
+      a.expiry_date.localeCompare(b.expiry_date)
   )
 }
 

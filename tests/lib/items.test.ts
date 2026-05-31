@@ -58,6 +58,15 @@ describe('sortItems', () => {
     const sorted = sortItems(items)
     expect(sorted.map(i => i.id)).toEqual(['2', '3', '1'])
   })
+
+  it('sorts items within the same status bucket by expiry_date ascending', () => {
+    const items = [
+      makeItem({ id: '1', expiry_date: '2026-06-03' }), // expiring_soon, later
+      makeItem({ id: '2', expiry_date: '2026-06-02' }), // expiring_soon, earlier
+    ]
+    const sorted = sortItems(items)
+    expect(sorted.map(i => i.id)).toEqual(['2', '1'])
+  })
 })
 
 describe('getDigestItems', () => {
