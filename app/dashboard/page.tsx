@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
 import { sortItems } from '@/lib/items'
