@@ -15,7 +15,19 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const supabase = createServerClient()
-  const { barcode, name, expiry_date, photo_url } = await request.json()
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  const { barcode, name, expiry_date, photo_url } = body
+
+  if (!barcode || !name || !expiry_date) {
+    return NextResponse.json({ error: 'barcode, name, and expiry_date are required' }, { status: 400 })
+  }
 
   const { data, error } = await supabase
     .from('items')
