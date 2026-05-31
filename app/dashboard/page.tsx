@@ -6,7 +6,8 @@ import type { Item } from '@/types'
 
 async function getItems(): Promise<Item[]> {
   const supabase = createServerClient()
-  const { data } = await supabase.from('items').select('*')
+  const { data, error } = await supabase.from('items').select('*')
+  if (error) throw error
   return sortItems((data as Item[]) ?? [])
 }
 
