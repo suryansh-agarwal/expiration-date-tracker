@@ -11,6 +11,8 @@ export default function BarcodeScanner({ onScan }: Props) {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null)
 
   useEffect(() => {
+    const scanned = { current: false }
+
     scannerRef.current = new Html5QrcodeScanner(
       'qr-reader',
       { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -18,10 +20,12 @@ export default function BarcodeScanner({ onScan }: Props) {
     )
     scannerRef.current.render(
       (decodedText) => {
-        scannerRef.current?.clear()
+        if (scanned.current) return
+        scanned.current = true
+        scannerRef.current?.clear().catch(() => {})
         onScan(decodedText)
       },
-      () => {} // suppress per-frame decode errors
+      () => {}
     )
     return () => {
       scannerRef.current?.clear().catch(() => {})

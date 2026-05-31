@@ -17,6 +17,7 @@ export default function ScanPage() {
   const [expiryDate, setExpiryDate] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const router = useRouter()
 
   const handleScan = useCallback(async (barcode: string) => {
@@ -32,31 +33,43 @@ export default function ScanPage() {
   async function handleSave() {
     if (state.stage !== 'new') return
     setSaving(true)
+    setSaveError('')
 
-    let photoUrl: string | null = null
-    if (photo) {
-      const fd = new FormData()
-      fd.append('file', photo)
-      fd.append('barcode', state.barcode)
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
-      if (uploadRes.ok) {
+    try {
+      let photoUrl: string | null = null
+      if (photo) {
+        const fd = new FormData()
+        fd.append('file', photo)
+        fd.append('barcode', state.barcode)
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd })
+        if (!uploadRes.ok) {
+          setSaveError('Photo upload failed. Please try again.')
+          return
+        }
         const { url } = await uploadRes.json()
         photoUrl = url
       }
+
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barcode: state.barcode,
+          name,
+          expiry_date: expiryDate,
+          photo_url: photoUrl,
+        }),
+      })
+
+      if (!res.ok) {
+        setSaveError('Failed to save item. Please try again.')
+        return
+      }
+
+      router.push('/dashboard')
+    } finally {
+      setSaving(false)
     }
-
-    await fetch('/api/items', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        barcode: state.barcode,
-        name,
-        expiry_date: expiryDate,
-        photo_url: photoUrl,
-      }),
-    })
-
-    router.push('/dashboard')
   }
 
   if (state.stage === 'found') {
@@ -73,7 +86,13 @@ export default function ScanPage() {
           </button>
         </div>
         <button
-          onClick={() => setState({ stage: 'scanning' })}
+          onClick={() => {
+            setName('')
+            setExpiryDate('')
+            setPhoto(null)
+            setSaveError('')
+            setState({ stage: 'scanning' })
+          }}
           className="mt-4 text-gray-500 text-sm w-full text-center"
         >
           Scan another
@@ -116,6 +135,7 @@ export default function ScanPage() {
               className="w-full text-sm text-gray-500"
             />
           </div>
+          {saveError && <p className="text-red-500 text-sm">{saveError}</p>}
           <button
             onClick={handleSave}
             disabled={!name || !expiryDate || saving}
@@ -125,7 +145,13 @@ export default function ScanPage() {
           </button>
         </div>
         <button
-          onClick={() => setState({ stage: 'scanning' })}
+          onClick={() => {
+            setName('')
+            setExpiryDate('')
+            setPhoto(null)
+            setSaveError('')
+            setState({ stage: 'scanning' })
+          }}
           className="mt-4 text-gray-500 text-sm w-full text-center"
         >
           ← Back to scanner
