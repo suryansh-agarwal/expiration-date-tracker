@@ -10,6 +10,7 @@ import type { Category } from '@/types'
 
 // Rotate a data-URL image by `degrees` on an offscreen canvas,
 // expanding the canvas so corners aren't clipped.
+// Also applies greyscale + contrast boost to improve barcode edge detection.
 function rotateDataUrl(src: string, degrees: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -23,6 +24,8 @@ function rotateDataUrl(src: string, degrees: number): Promise<string> {
       canvas.width  = Math.ceil(w)
       canvas.height = Math.ceil(h)
       const ctx = canvas.getContext('2d')!
+      // Greyscale removes colour noise; contrast sharpens bar/space boundaries
+      ctx.filter = 'grayscale(100%) contrast(180%)'
       ctx.translate(w / 2, h / 2)
       ctx.rotate(rad)
       ctx.drawImage(img, -img.width / 2, -img.height / 2)
@@ -74,7 +77,7 @@ async function decodeImageBarcode(file: File): Promise<string | null> {
   try {
     const { default: Quagga } = await import('@ericblade/quagga2')
     for (const angle of ROTATION_ANGLES) {
-      const rotated = angle === 0 ? src : await rotateDataUrl(src, angle)
+      const rotated = await rotateDataUrl(src, angle)
       const code    = await tryDecode(Quagga, rotated)
       if (code) return normalizeBarcode(code)
     }
