@@ -1,5 +1,11 @@
 import type { Item, ItemStatus } from '@/types'
 
+// UPC-A (12 digits) is EAN-13 with the leading zero stripped.
+// Normalize everything to EAN-13 so iPhone and Android agree.
+export function normalizeBarcode(code: string): string {
+  return /^\d{12}$/.test(code) ? '0' + code : code
+}
+
 export function getItemStatus(expiryDate: string): ItemStatus {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
