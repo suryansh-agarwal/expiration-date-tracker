@@ -1,25 +1,32 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { ScanLine, LogOut } from 'lucide-react'
+import { ScanLine, LogOut, Tag } from 'lucide-react'
 import { createServerClient } from '@/lib/supabase'
-import { sortItems, getItemStatus } from '@/lib/items'
-import ItemCard from '@/components/ItemCard'
-import type { Item } from '@/types'
+import { sortItems } from '@/lib/items'
+import DashboardFilters from '@/components/DashboardFilters'
+import type { Item, Category } from '@/types'
 
-async function getItems(): Promise<Item[]> {
+async function getData(): Promise<{ items: Item[]; categories: Category[] }> {
   const supabase = createServerClient()
-  const { data, error } = await supabase.from('items').select('*')
-  if (error) throw error
-  return sortItems((data as Item[]) ?? [])
+  const [itemsRes, catsRes] = await Promise.all([
+    supabase.from('items').select('*'),
+    supabase.from('categories').select('*').order('name', { ascending: true }),
+  ])
+  if (itemsRes.error) throw itemsRes.error
+  return {
+    items: sortItems((itemsRes.data as Item[]) ?? []),
+    categories: (catsRes.data as Category[]) ?? [],
+  }
 }
 
-export default async function DashboardPage() {
-  const items = await getItems()
-
-  const expired = items.filter(i => getItemStatus(i.expiry_date) === 'expired').length
-  const expiringSoon = items.filter(i => getItemStatus(i.expiry_date) === 'expiring_soon').length
-  const ok = items.filter(i => getItemStatus(i.expiry_date) === 'ok').length
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>
+}) {
+  const { items, categories } = await getData()
+  const { category } = await searchParams
 
   return (
     <main className="relative max-w-lg mx-auto px-4 py-6 min-h-screen overflow-x-hidden">
@@ -46,6 +53,14 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link
+            href="/categories"
+            className="flex items-center gap-1.5 text-violet-600 px-3 py-2.5 rounded-2xl font-semibold text-sm
+              hover:bg-violet-100 active:scale-[0.97] transition-all duration-150"
+            aria-label="Categories"
+          >
+            <Tag size={15} />
+          </Link>
+          <Link
             href="/scan"
             className="flex items-center gap-1.5 text-white px-4 py-2.5 rounded-2xl font-semibold text-sm
               hover:opacity-90 active:scale-[0.97] transition-all duration-150 shadow-md shadow-violet-300/40"
@@ -66,30 +81,6 @@ export default async function DashboardPage() {
           </form>
         </div>
       </div>
-
-      {/* Stats pills */}
-      {items.length > 0 && (
-        <div className="flex gap-2 mb-5 flex-wrap animate-fade-up">
-          {expired > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 ring-1 ring-red-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" aria-hidden />
-              {expired} expired
-            </span>
-          )}
-          {expiringSoon > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" aria-hidden />
-              {expiringSoon} expiring soon
-            </span>
-          )}
-          {ok > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 ring-1 ring-green-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden />
-              {ok} good
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Items */}
       {items.length === 0 ? (
@@ -113,11 +104,11 @@ export default async function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-2.5 animate-fade-up">
-          {items.map(item => (
-            <ItemCard key={item.id} item={item} />
-          ))}
-        </div>
+        <DashboardFilters
+          items={items}
+          categories={categories}
+          initialCategoryId={category ?? null}
+        />
       )}
     </main>
   )
