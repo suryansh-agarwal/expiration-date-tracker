@@ -1,11 +1,48 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, Camera, CheckCircle2, Package, CalendarDays, PenLine, Tag } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, Package, CalendarDays, PenLine, Tag, ImageIcon, Loader2 } from 'lucide-react'
 import CategorySelector from '@/components/CategorySelector'
+import { normalizeBarcode } from '@/lib/items'
 import type { Category } from '@/types'
+
+async function decodeImageBarcode(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const src = e.target?.result as string
+      try {
+        const { default: Quagga } = await import('@ericblade/quagga2')
+        Quagga.decodeSingle(
+          {
+            src,
+            numOfWorkers: 0,
+            inputStream: { size: 1200 },
+            decoder: {
+              readers: [
+                'ean_reader', 'ean_8_reader',
+                'upc_reader', 'upc_e_reader',
+                'code_128_reader', 'code_39_reader',
+              ],
+            },
+            locate: true,
+            locator: { patchSize: 'medium', halfSample: false },
+          },
+          (result) => {
+            const code = result?.codeResult?.code
+            resolve(code ? normalizeBarcode(code) : null)
+          }
+        )
+      } catch {
+        resolve(null)
+      }
+    }
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(file)
+  })
+}
 
 const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 
@@ -203,6 +240,9 @@ function NewItemForm({
 
 export default function ScanPage() {
   const [state, setState] = useState<ScanState>({ stage: 'scanning' })
+  const [imageDecoding, setImageDecoding] = useState(false)
+  const [imageError, setImageError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   const handleScan = useCallback(async (barcode: string) => {
@@ -215,12 +255,29 @@ export default function ScanPage() {
     }
   }, [])
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset so the same file can be re-selected if needed
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    setImageDecoding(true)
+    setImageError('')
+    const code = await decodeImageBarcode(file)
+    setImageDecoding(false)
+    if (code) {
+      handleScan(code)
+    } else {
+      setImageError('No barcode found. Try a clearer, well-lit photo.')
+    }
+  }
+
   function goToManual() {
     setState({ stage: 'new', barcode: `manual-${crypto.randomUUID()}` })
   }
 
   function resetToScanning() {
     setState({ stage: 'scanning' })
+    setImageError('')
   }
 
   if (state.stage === 'found') {
@@ -294,21 +351,48 @@ export default function ScanPage() {
         <p className="text-xs text-slate-400">Waiting for scan…</p>
       </div>
 
-      {/* Manual entry option */}
+      {/* Alternatives */}
       <div className="flex items-center gap-3 mb-3">
         <div className="flex-1 h-px bg-slate-200" />
         <span className="text-xs text-slate-400">or</span>
         <div className="flex-1 h-px bg-slate-200" />
       </div>
+
+      {/* Upload photo of barcode */}
+      <label className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl mb-3
+        border-2 border-violet-200 text-violet-600 font-semibold text-sm
+        hover:bg-violet-50 hover:border-violet-400 active:scale-[0.98]
+        transition-all duration-150 cursor-pointer
+        ${imageDecoding ? 'opacity-60 pointer-events-none' : ''}`}>
+        {imageDecoding
+          ? <><Loader2 size={16} className="animate-spin" /> Detecting barcode…</>
+          : <><ImageIcon size={16} /> Upload barcode photo</>
+        }
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="sr-only"
+        />
+      </label>
+
+      {imageError && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 mb-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" aria-hidden />
+          <p className="text-red-600 text-sm">{imageError}</p>
+        </div>
+      )}
+
       <button
         onClick={goToManual}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
-          border-2 border-violet-200 text-violet-600 font-semibold text-sm
-          hover:bg-violet-50 hover:border-violet-400 active:scale-[0.98]
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl
+          text-slate-400 text-sm font-medium
+          hover:text-slate-600 hover:bg-slate-100 active:scale-[0.98]
           transition-all duration-150 cursor-pointer"
       >
-        <PenLine size={16} />
-        Enter manually
+        <PenLine size={15} />
+        Enter manually instead
       </button>
     </main>
   )
