@@ -37,7 +37,14 @@ export default function ItemCard({ item }: { item: Item }) {
           />
         )}
         <div className="flex-1 min-w-0">
-          <p className="font-heading font-semibold text-slate-800 truncate text-[15px]">{item.name}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="font-heading font-semibold text-slate-800 truncate text-[15px]">{item.name}</p>
+            {item.quantity > 1 && (
+              <span className="flex-shrink-0 text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">
+                ×{item.quantity}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-500 mt-0.5">Expires {formattedDate}</p>
         </div>
         <StatusBadge status={status} />
