@@ -3,6 +3,14 @@ import type { Item } from '@/types'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function daysUntil(expiryDate: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -12,13 +20,13 @@ function daysUntil(expiryDate: string): number {
 
 function buildDigestHtml(expired: Item[], expiringSoon: Item[]): string {
   const expiredRows = expired
-    .map(i => `<li><strong>${i.name}</strong> — expired on ${i.expiry_date}</li>`)
+    .map(i => `<li><strong>${esc(i.name)}</strong> — expired on ${esc(i.expiry_date)}</li>`)
     .join('')
 
   const soonRows = expiringSoon
     .map(i => {
       const days = daysUntil(i.expiry_date)
-      return `<li><strong>${i.name}</strong> — expires in ${days} day${days === 1 ? '' : 's'} (${i.expiry_date})</li>`
+      return `<li><strong>${esc(i.name)}</strong> — expires in ${days} day${days === 1 ? '' : 's'} (${esc(i.expiry_date)})</li>`
     })
     .join('')
 
@@ -30,9 +38,12 @@ function buildDigestHtml(expired: Item[], expiringSoon: Item[]): string {
 }
 
 export async function sendDigestEmail(expired: Item[], expiringSoon: Item[]) {
+  const to = process.env.DIGEST_EMAIL
+  if (!to) throw new Error('DIGEST_EMAIL env var is not set')
+
   await resend.emails.send({
     from: 'Expiry Tracker <onboarding@resend.dev>',
-    to: process.env.DIGEST_EMAIL!,
+    to,
     subject: `Expiry Digest — ${expired.length} expired, ${expiringSoon.length} expiring soon`,
     html: buildDigestHtml(expired, expiringSoon),
   })

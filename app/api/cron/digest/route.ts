@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createServerClient } from '@/lib/supabase'
 import { getDigestItems } from '@/lib/items'
 import { sendDigestEmail } from '@/lib/email'
 import type { Item } from '@/types'
 
 export async function GET(request: NextRequest) {
-  const secret = request.headers.get('authorization')?.replace('Bearer ', '')
-  if (secret !== process.env.CRON_SECRET) {
+  const secret = request.headers.get('authorization')?.replace('Bearer ', '') ?? ''
+  const expected = process.env.CRON_SECRET ?? ''
+
+  if (
+    !expected ||
+    secret.length !== expected.length ||
+    !timingSafeEqual(Buffer.from(secret), Buffer.from(expected))
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -20,7 +27,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Nothing to report — no email sent' })
   }
 
-  await sendDigestEmail(expired, expiringSoon)
+  try {
+    await sendDigestEmail(expired, expiringSoon)
+  } catch (err) {
+    console.error('Failed to send digest email:', err)
+    return NextResponse.json({ error: 'Email delivery failed' }, { status: 500 })
+  }
+
   return NextResponse.json({
     message: `Email sent — ${expired.length} expired, ${expiringSoon.length} expiring soon`,
   })
