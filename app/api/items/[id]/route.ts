@@ -30,11 +30,13 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { name, expiry_date, photo_url } = body
+  const { name, expiry_date, photo_url, quantity, category_id } = body
   const update: Record<string, unknown> = {}
   if (name !== undefined) update.name = name
   if (expiry_date !== undefined) update.expiry_date = expiry_date
   if (photo_url !== undefined) update.photo_url = photo_url
+  if (quantity !== undefined) update.quantity = quantity
+  if (category_id !== undefined) update.category_id = category_id
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })

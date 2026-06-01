@@ -9,6 +9,8 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     name: 'Milk',
     expiry_date: '2030-01-01',
     photo_url: null,
+    quantity: 1,
+    category_id: null,
     created_at: '2026-01-01T00:00:00Z',
     ...overrides,
   }

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { barcode, name, expiry_date, photo_url } = body
+  const { barcode, name, expiry_date, photo_url, quantity, category_id } = body
 
   if (!barcode || !name || !expiry_date) {
     return NextResponse.json({ error: 'barcode, name, and expiry_date are required' }, { status: 400 })
@@ -31,7 +31,14 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('items')
-    .insert({ barcode, name, expiry_date, photo_url: photo_url ?? null })
+    .insert({
+      barcode,
+      name,
+      expiry_date,
+      photo_url: photo_url ?? null,
+      quantity: typeof quantity === 'number' && quantity > 0 ? quantity : 1,
+      category_id: category_id ?? null,
+    })
     .select()
     .single()
 
