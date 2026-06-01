@@ -5,87 +5,8 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Camera, CheckCircle2, Package, CalendarDays, PenLine, Tag, ImageIcon, Loader2 } from 'lucide-react'
 import CategorySelector from '@/components/CategorySelector'
-import { normalizeBarcode } from '@/lib/items'
+import { decodeImageBarcode } from '@/lib/barcode'
 import type { Category } from '@/types'
-
-// Rotate a data-URL image by `degrees` on an offscreen canvas,
-// expanding the canvas so corners aren't clipped.
-// Also applies greyscale + contrast boost to improve barcode edge detection.
-function rotateDataUrl(src: string, degrees: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      const rad = (degrees * Math.PI) / 180
-      const sin = Math.abs(Math.sin(rad))
-      const cos = Math.abs(Math.cos(rad))
-      const w = img.width  * cos + img.height * sin
-      const h = img.width  * sin + img.height * cos
-      const canvas = document.createElement('canvas')
-      canvas.width  = Math.ceil(w)
-      canvas.height = Math.ceil(h)
-      const ctx = canvas.getContext('2d')!
-      // Greyscale removes colour noise; contrast sharpens bar/space boundaries
-      ctx.filter = 'grayscale(100%) contrast(180%)'
-      ctx.translate(w / 2, h / 2)
-      ctx.rotate(rad)
-      ctx.drawImage(img, -img.width / 2, -img.height / 2)
-      resolve(canvas.toDataURL('image/jpeg', 0.92))
-    }
-    img.onerror = reject
-    img.src = src
-  })
-}
-
-// Try Quagga.decodeSingle on a single src string.
-function tryDecode(
-  Quagga: typeof import('@ericblade/quagga2').default,
-  src: string
-): Promise<string | null> {
-  return new Promise((resolve) => {
-    Quagga.decodeSingle(
-      {
-        src,
-        numOfWorkers: 0,
-        inputStream: { size: 1200 },
-        decoder: {
-          readers: [
-            'ean_reader', 'ean_8_reader',
-            'upc_reader', 'upc_e_reader',
-            'code_128_reader', 'code_39_reader',
-          ],
-        },
-        locate: true,
-        locator: { patchSize: 'medium', halfSample: false },
-      },
-      (result) => resolve(result?.codeResult?.code ?? null)
-    )
-  })
-}
-
-// Try decoding at multiple rotation angles — mirrors what the live stream
-// achieves naturally by getting many frames from different positions.
-const ROTATION_ANGLES = [0, -10, 10, -20, 20, -5, 5]
-
-async function decodeImageBarcode(file: File): Promise<string | null> {
-  const src: string = await new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload  = (e) => resolve(e.target?.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-
-  try {
-    const { default: Quagga } = await import('@ericblade/quagga2')
-    for (const angle of ROTATION_ANGLES) {
-      const rotated = await rotateDataUrl(src, angle)
-      const code    = await tryDecode(Quagga, rotated)
-      if (code) return normalizeBarcode(code)
-    }
-  } catch {
-    // ignore — returns null below
-  }
-  return null
-}
 
 const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 
