@@ -5,12 +5,13 @@ import Quagga from '@ericblade/quagga2'
 import { CameraIcon, RefreshCw } from 'lucide-react'
 import { normalizeBarcode } from '@/lib/items'
 import { rotateDataUrl, tryDecode, CAPTURE_ROTATION_ANGLES } from '@/lib/barcode'
+import { decodeWithOCR } from '@/lib/ocr'
 
 interface Props {
   onScan: (barcode: string) => void
 }
 
-type CaptureState = 'idle' | 'capturing' | 'not_found'
+type CaptureState = 'idle' | 'capturing' | 'ocr' | 'not_found'
 
 const CONFIRM_THRESHOLD = 3
 const BLACK_SCREEN_MS   = 2500
@@ -62,7 +63,18 @@ export default function BarcodeScanner({ onScan }: Props) {
       }
     }
 
-    // Nothing found — flash feedback then resume normal scanning
+    // Quagga failed — try OCR on the raw (unrotated) frame as a fallback
+    setCaptureState('ocr')
+    const ocrCode = await decodeWithOCR(src)
+    if (ocrCode) {
+      scanned.current = true
+      Quagga.stop()
+      setCaptureState('idle')
+      onScan(ocrCode)
+      return
+    }
+
+    // Both failed — flash feedback then resume normal scanning
     setCaptureState('not_found')
     setTimeout(() => setCaptureState('idle'), 1800)
   }, [captureState, onScan])
@@ -192,7 +204,7 @@ export default function BarcodeScanner({ onScan }: Props) {
           <button
             type="button"
             onClick={captureFrame}
-            disabled={captureState === 'capturing'}
+            disabled={captureState === 'capturing' || captureState === 'ocr'}
             aria-label="Capture frame"
             className={`w-14 h-14 rounded-full border-4 flex items-center justify-center
               transition-all duration-150 active:scale-90 cursor-pointer shadow-lg
@@ -200,9 +212,9 @@ export default function BarcodeScanner({ onScan }: Props) {
                 ? 'border-red-400 bg-red-500/30'
                 : 'border-white bg-white/20 hover:bg-white/30'
               }
-              ${captureState === 'capturing' ? 'opacity-60' : ''}`}
+              ${captureState === 'capturing' || captureState === 'ocr' ? 'opacity-60' : ''}`}
           >
-            {captureState === 'capturing' ? (
+            {captureState === 'capturing' || captureState === 'ocr' ? (
               <span className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
             ) : (
               <span className={`w-9 h-9 rounded-full transition-colors
@@ -210,6 +222,11 @@ export default function BarcodeScanner({ onScan }: Props) {
               />
             )}
           </button>
+          {(captureState === 'capturing' || captureState === 'ocr') && (
+            <span className="text-white text-xs font-semibold bg-black/60 px-3 py-1 rounded-full backdrop-blur-sm">
+              {captureState === 'ocr' ? 'Trying OCR…' : 'Scanning…'}
+            </span>
+          )}
           {captureState === 'not_found' && (
             <span className="text-white text-xs font-semibold bg-black/60 px-3 py-1 rounded-full backdrop-blur-sm">
               No barcode found — keep trying
